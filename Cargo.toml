@@ -1,0 +1,14 @@
+[package]
+name = "mpir"
+version = "0.1.0"
+authors = ["Sebastian Angel <sebs@cs.utexas.edu>"]
+
+[dependencies]
+sealpir = { path = "../sealpir-rust/" }
+rust-crypto = "*"
+serde = "*"
+serde_derive = "*"
+bincode = "*"
+num = "*"
+rand = "*"
+criterion = "*"
