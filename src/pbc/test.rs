@@ -113,7 +113,7 @@ fn test_pung() {
         code.set_labels(labels);
 
         // client
-        let schedule = (&code as &BatchCode<usize, usize>)
+        let _schedule = (&code as &BatchCode<usize, usize>)
             .get_schedule(&keys)
             .unwrap();
     }
