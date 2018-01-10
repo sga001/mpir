@@ -879,13 +879,11 @@ const SIZE: u32 = 1 << 16;
 const ELE_SIZE: usize = 288 - 8; // usize since index adds 4 bytes
 
 // SETUP
-/*
 pir_setup_cuckoo!(setup_cuckoo_k16, 16, SIZE, 20, 2, ELE_SIZE);
 pir_setup_cuckoo!(setup_cuckoo_k64, 64, SIZE, 20, 2, ELE_SIZE);
 pir_setup_cuckoo!(setup_cuckoo_k256, 256, SIZE, 20, 2, ELE_SIZE);
-*/
+
 pir_setup_pung!(setup_pung_k16, 16, SIZE, 20, 2, ELE_SIZE);
-/*
 pir_setup_pung!(setup_pung_k64, 64, SIZE, 20, 2, ELE_SIZE);
 pir_setup_pung!(setup_pung_k256, 256, SIZE, 20, 2, ELE_SIZE);
 
@@ -915,4 +913,3 @@ pir_decode_cuckoo!(decode_cuckoo_k256, 256, SIZE, 20, 2, ELE_SIZE);
 pir_decode_pung!(decode_pung_k16, 16, SIZE, 20, 2, ELE_SIZE);
 pir_decode_pung!(decode_pung_k64, 64, SIZE, 20, 2, ELE_SIZE);
 pir_decode_pung!(decode_pung_k256, 256, SIZE, 20, 2, ELE_SIZE);
-*/
