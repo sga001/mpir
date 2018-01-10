@@ -96,11 +96,13 @@ macro_rules! pir_setup_cuckoo {
                     collection.push(Tuple { t: (i, Element { e: x }) });
                 }
 
+
                 let code = CuckooCode::new($k, 3, 1.3); 
 
                 b.iter(|| {
                         let buckets = code.encode(&collection);
-                        MultiPirServer::new_setup(&buckets[..], $size, 2048, $logt,  $d);
+                        MultiPirServer::new_setup(&buckets[..], ($size + get_size!(usize)) as u32, 
+                                                  2048, $logt,  $d);
                     }
                 );
             }
@@ -122,9 +124,9 @@ macro_rules! pir_setup_pung {
             fn $name(b: &mut Bencher) {
                 let mut rng = ChaChaRng::new_unseeded();
 
-                let mut collection = vec![];
+                let mut collection: Vec<Tuple<usize, Element>> = vec![];
 
-                for i in 0..$num {
+                for i in 0..$num as usize {
                     let mut x = [0u8; $size];
                     rng.fill_bytes(&mut x);
                     collection.push(Tuple { t: (i, Element { e: x } ) });
@@ -134,7 +136,8 @@ macro_rules! pir_setup_pung {
 
                 b.iter(|| {
                         let buckets = code.encode(&collection);
-                        MultiPirServer::new_setup(&buckets, $size, 2048, $logt,  $d);
+                        MultiPirServer::new_setup(&buckets[..], ($size + get_size!(usize)) as u32, 
+                                                  2048, $logt, $d);
                     }
                 );
             }
@@ -190,7 +193,7 @@ macro_rules! pir_query_cuckoo {
                 // Generate keys (desired indexes)
                 let mut key_set: HashSet<usize> = HashSet::new();
                 while key_set.len() < $k { 
-                    key_set.insert(rng.next_u32() as usize % $size);
+                    key_set.insert(rng.next_u32() as usize % $num as usize);
                 }
 
                 let keys: Vec<usize> = key_set.drain().collect();
@@ -271,7 +274,7 @@ macro_rules! pir_query_pung {
                 // Generate keys (desired indexes)
                 let mut key_set: HashSet<usize> = HashSet::new();
                 while key_set.len() < $k { 
-                    key_set.insert(rng.next_u32() as usize % $size);
+                    key_set.insert(rng.next_u32() as usize % $num as usize);
                 }
 
                 let keys: Vec<usize> = key_set.drain().collect();
@@ -354,7 +357,7 @@ macro_rules! pir_reply_cuckoo {
                 // Generate keys (desired indexes)
                 let mut key_set: HashSet<usize> = HashSet::new();
                 while key_set.len() < $k { 
-                    key_set.insert(rng.next_u32() as usize % $size);
+                    key_set.insert(rng.next_u32() as usize % $num as usize);
                 }
 
                 let keys: Vec<usize> = key_set.drain().collect();
@@ -425,7 +428,7 @@ macro_rules! pir_reply_pung {
 
                 // Create the client and the server
                 let client = MultiPirClient::new(&sizes, 2048, $logt, $d);
-                let mut server = MultiPirServer::new(&sizes, 2048, $logt,  $d);
+                let mut server = MultiPirServer::new(&sizes, 2048, $logt, $d);
                 server.setup(&oracle);
 
                 let galois = client.get_galois_keys();
@@ -448,7 +451,7 @@ macro_rules! pir_reply_pung {
                 // Generate keys (desired indexes)
                 let mut key_set: HashSet<usize> = HashSet::new();
                 while key_set.len() < $k { 
-                    key_set.insert(rng.next_u32() as usize % $size);
+                    key_set.insert(rng.next_u32() as usize % $num as usize);
                 }
 
                 let keys: Vec<usize> = key_set.drain().collect();
@@ -873,39 +876,43 @@ macro_rules! pir_decode_pung {
 // bench name, k, number of entries, logt, d, size of each entry
 
 const SIZE: u32 = 1 << 16;
+const ELE_SIZE: usize = 288 - 8; // usize since index adds 4 bytes
 
 // SETUP
-pir_setup_cuckoo!(setup_cuckoo_k16, 16, SIZE, 20, 2, 288);
-pir_setup_cuckoo!(setup_cuckoo_k64, 64, SIZE, 20, 2, 288);
-pir_setup_cuckoo!(setup_cuckoo_k256, 256, SIZE, 20, 2, 288);
-
-pir_setup_pung!(setup_pung_k16, 16, SIZE, 20, 2, 288);
-pir_setup_pung!(setup_pung_k64, 64, SIZE, 20, 2, 288);
-pir_setup_pung!(setup_pung_k256, 256, SIZE, 20, 2, 288);
+/*
+pir_setup_cuckoo!(setup_cuckoo_k16, 16, SIZE, 20, 2, ELE_SIZE);
+pir_setup_cuckoo!(setup_cuckoo_k64, 64, SIZE, 20, 2, ELE_SIZE);
+pir_setup_cuckoo!(setup_cuckoo_k256, 256, SIZE, 20, 2, ELE_SIZE);
+*/
+pir_setup_pung!(setup_pung_k16, 16, SIZE, 20, 2, ELE_SIZE);
+/*
+pir_setup_pung!(setup_pung_k64, 64, SIZE, 20, 2, ELE_SIZE);
+pir_setup_pung!(setup_pung_k256, 256, SIZE, 20, 2, ELE_SIZE);
 
 // QUERY
-pir_query_cuckoo!(query_cuckoo_k16, 16, SIZE, 20, 2, 288);
-pir_query_cuckoo!(query_cuckoo_k64, 64, SIZE, 20, 2, 288);
-pir_query_cuckoo!(query_cuckoo_k256, 256, SIZE, 20, 2, 288);
+pir_query_cuckoo!(query_cuckoo_k16, 16, SIZE, 20, 2, ELE_SIZE);
+pir_query_cuckoo!(query_cuckoo_k64, 64, SIZE, 20, 2, ELE_SIZE);
+pir_query_cuckoo!(query_cuckoo_k256, 256, SIZE, 20, 2, ELE_SIZE);
 
-pir_query_pung!(query_pung_k16, 16, SIZE, 20, 2, 288);
-pir_query_pung!(query_pung_k64, 64, SIZE, 20, 2, 288);
-pir_query_pung!(query_pung_k256, 256, SIZE, 20, 2, 288);
+pir_query_pung!(query_pung_k16, 16, SIZE, 20, 2, ELE_SIZE);
+pir_query_pung!(query_pung_k64, 64, SIZE, 20, 2, ELE_SIZE);
+pir_query_pung!(query_pung_k256, 256, SIZE, 20, 2, ELE_SIZE);
 
 // REPLY 
-pir_reply_cuckoo!(reply_cuckoo_k16, 16, SIZE, 20, 2, 288);
-pir_reply_cuckoo!(reply_cuckoo_k64, 64, SIZE, 20, 2, 288);
-pir_reply_cuckoo!(reply_cuckoo_k256, 256, SIZE, 20, 2, 288);
+pir_reply_cuckoo!(reply_cuckoo_k16, 16, SIZE, 20, 2, ELE_SIZE);
+pir_reply_cuckoo!(reply_cuckoo_k64, 64, SIZE, 20, 2, ELE_SIZE);
+pir_reply_cuckoo!(reply_cuckoo_k256, 256, SIZE, 20, 2, ELE_SIZE);
 
-pir_reply_pung!(reply_pung_k16, 16, SIZE, 20, 2, 288);
-pir_reply_pung!(reply_pung_k64, 64, SIZE, 20, 2, 288);
-pir_reply_pung!(reply_pung_k256, 256, SIZE, 20, 2, 288);
+pir_reply_pung!(reply_pung_k16, 16, SIZE, 20, 2, ELE_SIZE);
+pir_reply_pung!(reply_pung_k64, 64, SIZE, 20, 2, ELE_SIZE);
+pir_reply_pung!(reply_pung_k256, 256, SIZE, 20, 2, ELE_SIZE);
 
 // DECODE
-pir_decode_cuckoo!(decode_cuckoo_k16, 16, SIZE, 20, 2, 288);
-pir_decode_cuckoo!(decode_cuckoo_k64, 64, SIZE, 20, 2, 288);
-pir_decode_cuckoo!(decode_cuckoo_k256, 256, SIZE, 20, 2, 288);
+pir_decode_cuckoo!(decode_cuckoo_k16, 16, SIZE, 20, 2, ELE_SIZE);
+pir_decode_cuckoo!(decode_cuckoo_k64, 64, SIZE, 20, 2, ELE_SIZE);
+pir_decode_cuckoo!(decode_cuckoo_k256, 256, SIZE, 20, 2, ELE_SIZE);
 
-pir_decode_pung!(decode_pung_k16, 16, SIZE, 20, 2, 288);
-pir_decode_pung!(decode_pung_k64, 64, SIZE, 20, 2, 288);
-pir_decode_pung!(decode_pung_k256, 256, SIZE, 20, 2, 288);
+pir_decode_pung!(decode_pung_k16, 16, SIZE, 20, 2, ELE_SIZE);
+pir_decode_pung!(decode_pung_k64, 64, SIZE, 20, 2, ELE_SIZE);
+pir_decode_pung!(decode_pung_k256, 256, SIZE, 20, 2, ELE_SIZE);
+*/
