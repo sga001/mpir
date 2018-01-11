@@ -533,7 +533,7 @@ macro_rules! pir_decode_cuckoo {
                 // Generate keys (desired indexes)
                 let mut key_set: HashSet<usize> = HashSet::new();
                 while key_set.len() < $k { 
-                    key_set.insert(rng.next_u32() as usize % $size);
+                    key_set.insert(rng.next_u32() as usize % $num as usize);
                 }
 
                 let keys: Vec<usize> = key_set.drain().collect();
@@ -607,7 +607,7 @@ macro_rules! pir_decode_cuckoo {
                 // Generate keys (desired indexes)
                 let mut key_set: HashSet<usize> = HashSet::new();
                 while key_set.len() < $k { 
-                    key_set.insert(rng.next_u32() as usize % $size);
+                    key_set.insert(rng.next_u32() as usize % $num as usize);
                 }
 
                 let keys: Vec<usize> = key_set.drain().collect();
@@ -693,7 +693,7 @@ macro_rules! pir_decode_pung {
                 // Generate keys (desired indexes)
                 let mut key_set: HashSet<usize> = HashSet::new();
                 while key_set.len() < $k { 
-                    key_set.insert(rng.next_u32() as usize % $size);
+                    key_set.insert(rng.next_u32() as usize % $num);
                 }
 
                 let keys: Vec<usize> = key_set.drain().collect();
@@ -807,7 +807,7 @@ macro_rules! pir_decode_pung {
                 // Generate keys (desired indexes)
                 let mut key_set: HashSet<usize> = HashSet::new();
                 while key_set.len() < $k { 
-                    key_set.insert(rng.next_u32() as usize % $size);
+                    key_set.insert(rng.next_u32() as usize % $num as usize);
                 }
 
                 let keys: Vec<usize> = key_set.drain().collect();
