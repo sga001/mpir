@@ -1,6 +1,6 @@
 use super::BatchCode;
 use serde::Serialize;
-use bincode::{serialize, Infinite};
+use bincode::serialize;
 use std::collections::HashMap;
 use std::{cmp, hash};
 use super::Tuple;
@@ -40,7 +40,7 @@ where
 
         for entry in collection {
             // The following computes bucket = sha256(key) % k;
-            let bytes = serialize(&entry.t.0, Infinite).unwrap();
+            let bytes = serialize(&entry.t.0).unwrap();
             let bucket = super::hash_and_mod(0, 0, &bytes, self.k);
             collections[bucket].push(entry.clone());
         }
@@ -63,7 +63,7 @@ where
         let mut schedule = HashMap::new();
 
         for key in keys {
-            let bytes = serialize(&key, Infinite).unwrap();
+            let bytes = serialize(&key).unwrap();
             let bucket = super::hash_and_mod(0, 0, &bytes, self.k);
 
             // Find a bucket that's not being used.

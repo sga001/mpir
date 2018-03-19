@@ -12,3 +12,7 @@ bincode = "*"
 num = "*"
 rand = "*"
 criterion = "*"
+
+[[bench]]
+name = "pir"
+harness = false

@@ -1,6 +1,6 @@
 use super::BatchCode;
 use serde::Serialize;
-use bincode::{serialize, Infinite};
+use bincode::serialize;
 use std::collections::HashMap;
 use std::{cmp, hash};
 use std::ops::{BitXor, BitXorAssign};
@@ -91,7 +91,7 @@ where
 
         for entry in collection {
             // First get the binary representation of the key
-            let bytes = serialize(&entry.t.0, Infinite).unwrap();
+            let bytes = serialize(&entry.t.0).unwrap();
 
             let mut bucket_choices = Vec::with_capacity(2);
 
