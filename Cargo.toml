@@ -8,7 +8,7 @@ sealpir = { path = "../sealpir-rust/" }
 rust-crypto = "0.2.36"
 serde = "1.0.94"
 serde_derive = "1.0.94"
-bincode = "1.1.4""
+bincode = "1.1.4"
 num = "0.2.0"
 rand = "0.3.23"
 criterion = "0.2.11"
