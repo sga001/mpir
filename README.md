@@ -24,3 +24,7 @@ You can then compile and test SealPIR-Rust with cargo: ``$ cargo test``
 at ``../sealpir-rust/``).
 
 - Compile mpir with cargo and test that it works: ``$ cargo test``
+
+# Reproducing results
+
+Run ``cargo bench`` to reproduce the experiments in the paper.
