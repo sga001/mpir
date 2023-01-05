@@ -1,17 +1,27 @@
 use sealpir::client::PirClient;
-use sealpir::{PirReply, PirQuery};
+use sealpir::{PirQuery, PirReply};
 
 pub struct MultiPirClient<'a> {
     handles: Vec<PirClient<'a>>,
 }
 
 impl<'a> MultiPirClient<'a> {
-
-    pub fn new(buckets: &[(u32, u32)], poly_degree: u32, log_plain_mod: u32, d: u32) -> MultiPirClient<'a> {
+    pub fn new(
+        buckets: &[(u32, u32)],
+        poly_degree: u32,
+        log_plain_mod: u32,
+        d: u32,
+    ) -> MultiPirClient<'a> {
         let mut handles = Vec::with_capacity(buckets.len());
 
         for &(ele_num, ele_size) in buckets {
-            handles.push(PirClient::new(ele_num, ele_size, poly_degree, log_plain_mod, d));
+            handles.push(PirClient::new(
+                ele_num,
+                ele_size,
+                poly_degree,
+                log_plain_mod,
+                d,
+            ));
         }
 
         MultiPirClient { handles }

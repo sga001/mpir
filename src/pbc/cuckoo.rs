@@ -1,12 +1,12 @@
 use super::BatchCode;
-use serde::Serialize;
+use super::Tuple;
 use bincode::serialize;
-use std::collections::HashMap;
-use std::{cmp, hash};
 use rand;
 use rand::Rng;
-use super::Tuple;
+use serde::Serialize;
+use std::collections::HashMap;
 use std::ops::{BitXor, BitXorAssign};
+use std::{cmp, hash};
 
 const MAX_ATTEMPTS: usize = 1000;
 
@@ -31,7 +31,7 @@ fn insert<K>(
     buckets: &HashMap<K, Vec<usize>>,
     key: &K,
     attempt: usize,
-    rng: &mut Rng,
+    rng: &mut dyn Rng,
 ) -> bool
 where
     K: Clone + Serialize + cmp::Eq + hash::Hash,

@@ -1,10 +1,10 @@
 use super::BatchCode;
-use serde::Serialize;
-use bincode::serialize;
-use std::collections::HashMap;
-use std::{cmp, hash};
 use super::Tuple;
+use bincode::serialize;
+use serde::Serialize;
+use std::collections::HashMap;
 use std::ops::{BitXor, BitXorAssign};
+use std::{cmp, hash};
 
 pub struct ShardingCode {
     k: usize,
@@ -18,7 +18,6 @@ impl ShardingCode {
         ShardingCode { k }
     }
 }
-
 
 impl<K, V> BatchCode<K, V> for ShardingCode
 where
@@ -87,7 +86,6 @@ where
         // systematic so we don't need to have multiple indices per item).
         Some(schedule)
     }
-
 
     fn decode(&self, results: &[Tuple<K, V>]) -> Tuple<K, V> {
         assert_eq!(results.len(), 1);

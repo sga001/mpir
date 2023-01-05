@@ -1,7 +1,8 @@
 [package]
 name = "mpir"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Sebastian Angel <sebastian.angel@cis.upenn.edu>"]
+edition = "2021"
 
 [dependencies]
 sealpir = { path = "../sealpir-rust/" }

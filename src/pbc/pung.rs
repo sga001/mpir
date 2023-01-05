@@ -1,10 +1,10 @@
 use super::BatchCode;
-use serde::Serialize;
-use bincode::serialize;
-use std::collections::HashMap;
-use std::{cmp, hash};
-use std::ops::{BitXor, BitXorAssign};
 use super::Tuple;
+use bincode::serialize;
+use serde::Serialize;
+use std::collections::HashMap;
+use std::ops::{BitXor, BitXorAssign};
+use std::{cmp, hash};
 
 pub struct PungCode<T> {
     k: usize,
@@ -19,7 +19,7 @@ where
         assert!(k > 4, "You are better off using a subcube batch code");
 
         PungCode {
-            k: k,
+            k,
             labels: HashMap::new(),
         }
     }
@@ -28,7 +28,6 @@ where
         self.labels = labels;
     }
 }
-
 
 fn encode_bucket<T>(mut bucket: Vec<T>) -> Vec<Vec<T>>
 where
@@ -72,7 +71,6 @@ where
 
     encodings
 }
-
 
 impl<K, V> BatchCode<K, V> for PungCode<K>
 where

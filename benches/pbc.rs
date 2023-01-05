@@ -4,27 +4,19 @@ extern crate mpir;
 extern crate rand;
 extern crate test;
 
-use test::Bencher;
-use std::mem;
-use mpir::client::MultiPirClient;
-use mpir::server::MultiPirServer;
-use mpir::pbc::{BatchCode, Tuple};
-use mpir::pbc::replication::ReplicationCode;
-use mpir::pbc::sharding::ShardingCode;
 use mpir::pbc::choices::ChoicesCode;
 use mpir::pbc::cuckoo::CuckooCode;
 use mpir::pbc::pung::PungCode;
+use mpir::pbc::replication::ReplicationCode;
+use mpir::pbc::sharding::ShardingCode;
+use mpir::pbc::{BatchCode, Tuple};
 use rand::Rng;
 use std::collections::HashMap;
 use std::collections::HashSet;
-
-macro_rules! get_size {
-    ($d_type:ty) => (mem::size_of::<$d_type>());
-}
+use test::Bencher;
 
 const K: usize = 64;
 const SIZE: usize = 32768;
-
 
 fn get_schedule<T>(b: &mut Bencher, code: &T)
 where
@@ -33,52 +25,52 @@ where
     let mut rng = rand::thread_rng();
 
     let mut key_set: HashSet<usize> = HashSet::new();
-    while key_set.len() < K { 
+    while key_set.len() < K {
         key_set.insert(rng.next_u32() as usize % SIZE);
     }
     let keys: Vec<usize> = key_set.drain().collect();
 
-    b.iter(|| { code.get_schedule(&keys).unwrap(); });
+    b.iter(|| {
+        code.get_schedule(&keys).unwrap();
+    });
 }
 
 fn encode<T>(b: &mut Bencher, code: &T)
-    where T: BatchCode<usize, usize>
+where
+    T: BatchCode<usize, usize>,
 {
-    let mut rng = rand::thread_rng();
     let collection: Vec<Tuple<usize, usize>> = (0..SIZE).map(|e| Tuple { t: (e, e * e) }).collect();
- 
+
     b.iter(|| code.encode(&collection));
 }
 
 fn decode<T>(b: &mut Bencher, code: &T)
-    where T: BatchCode<usize, usize>
+where
+    T: BatchCode<usize, usize>,
 {
     let mut rng = rand::thread_rng();
-    let collection: Vec<Tuple<usize, usize>> = (0..SIZE).map(|e| Tuple { t: (e, e*e) }).collect();
-    let oracle = code.encode(&collection); 
+    let collection: Vec<Tuple<usize, usize>> = (0..SIZE).map(|e| Tuple { t: (e, e * e) }).collect();
+    let oracle = code.encode(&collection);
     let num_elems: Vec<u64> = oracle.iter().map(|vec| vec.len() as u64).collect();
 
     let mut key_set: HashSet<usize> = HashSet::new();
-    while key_set.len() < K { 
+    while key_set.len() < K {
         key_set.insert(rng.next_u32() as usize % SIZE);
     }
 
     let keys: Vec<usize> = key_set.drain().collect();
-    let schedule  = code.get_schedule(&keys).expect("Schedule failed");
+    let schedule = code.get_schedule(&keys).expect("Schedule failed");
 
     let indexes: HashMap<usize, usize> = schedule
-    .iter()
-    .map(|(key, buckets)| (key, buckets[0]))
-    .map(|(key, bucket)| {
-        (
-            *key,
-            oracle[bucket]
-                .iter()
-                .position(|e| e.t.0 == *key)
-                .unwrap(),
-        )
-    })
-    .collect();
+        .iter()
+        .map(|(key, buckets)| (key, buckets[0]))
+        .map(|(key, bucket)| {
+            (
+                *key,
+                oracle[bucket].iter().position(|e| e.t.0 == *key).unwrap(),
+            )
+        })
+        .collect();
 
     let mut ind_vec = Vec::with_capacity(oracle.len());
 
@@ -97,8 +89,6 @@ fn decode<T>(b: &mut Bencher, code: &T)
         }
     });
 }
-
-
 
 #[bench]
 fn bench_schedule_replication(b: &mut Bencher) {
@@ -141,7 +131,6 @@ fn bench_encode_choices(b: &mut Bencher) {
     let code = ChoicesCode::new(K, 2);
     encode(b, &code);
 }
-
 
 #[bench]
 fn bench_encode_pung(b: &mut Bencher) {
@@ -193,10 +182,8 @@ fn bench_schedule_pung(b: &mut Bencher) {
     code.set_labels(labels);
 
     b.iter(|| {
-        (&code as &BatchCode<usize, usize>)
+        (&code as &dyn BatchCode<usize, usize>)
             .get_schedule(&keys)
             .unwrap();
     });
 }
-
-

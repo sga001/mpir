@@ -1,12 +1,12 @@
-use num::bigint::BigUint;
-use num::Integer;
-use num::cast::ToPrimitive;
 use crypto::digest::Digest;
 use crypto::sha2::Sha256;
+use num::bigint::BigUint;
+use num::cast::ToPrimitive;
+use num::Integer;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::ops::{BitXor, BitXorAssign};
 use std::{cmp, hash};
-use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct Tuple<K, V>
@@ -42,7 +42,6 @@ where
     }
 }
 
-
 pub trait BatchCode<K, V>
 where
     K: Clone + Serialize + BitXor<Output = K> + BitXorAssign + cmp::Eq + hash::Hash,
@@ -62,7 +61,6 @@ where
     /// WARNING: Assumes unique keys (this is not fundamental and does not change the performance,
     /// but we're using a hashmap as output so duplicate keys will be overwritten...).
     fn get_schedule(&self, keys: &[K]) -> Option<HashMap<K, Vec<usize>>>;
-
 
     /// This function takes a vector of tuples and combines them together into the
     /// desired tuple. In many cases, the vector contains only one entry in which case it is
@@ -85,7 +83,7 @@ macro_rules! retry_bound {
 // utility function that computes a hash of the key and mods it by the given modulus
 fn hash_and_mod(id: usize, nonce: usize, data: &[u8], modulus: usize) -> usize {
     let mut digest = Sha256::new();
-    digest.input_str(&format!("{}{}", id, nonce));
+    digest.input_str(&format!("{id}{nonce}"));
 
     // hash the key and get the result
     digest.input(data);
@@ -100,11 +98,11 @@ fn hash_and_mod(id: usize, nonce: usize, data: &[u8], modulus: usize) -> usize {
         .unwrap()
 }
 
-pub mod replication;
-pub mod sharding;
 pub mod choices;
 pub mod cuckoo;
 pub mod pung;
+pub mod replication;
+pub mod sharding;
 
 #[cfg(test)]
 mod test;

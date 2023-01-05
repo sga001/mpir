@@ -1,10 +1,10 @@
 use super::BatchCode;
-use serde::Serialize;
-use bincode::serialize;
-use std::collections::HashMap;
-use std::{cmp, hash};
 use super::Tuple;
+use bincode::serialize;
+use serde::Serialize;
+use std::collections::HashMap;
 use std::ops::{BitXor, BitXorAssign};
+use std::{cmp, hash};
 
 pub struct ChoicesCode {
     k: usize,
@@ -66,7 +66,6 @@ where
             let clone = collections[i % self.k].clone();
             collections.push(clone);
         }
-
 
         assert_eq!(collections.len(), total_buckets);
         collections

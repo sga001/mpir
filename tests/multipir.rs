@@ -1,5 +1,3 @@
-#![feature(custom_attribute, custom_derive, plugin)]
-
 extern crate mpir;
 extern crate rand;
 extern crate serde;
@@ -7,18 +5,18 @@ extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 
-use std::collections::HashSet;
-use std::mem;
 use mpir::client::MultiPirClient;
-use mpir::server::MultiPirServer;
-use mpir::pbc::{BatchCode, Tuple};
-use mpir::pbc::replication::ReplicationCode;
-use mpir::pbc::sharding::ShardingCode;
 use mpir::pbc::choices::ChoicesCode;
 use mpir::pbc::cuckoo::CuckooCode;
 use mpir::pbc::pung::PungCode;
+use mpir::pbc::replication::ReplicationCode;
+use mpir::pbc::sharding::ShardingCode;
+use mpir::pbc::{BatchCode, Tuple};
+use mpir::server::MultiPirServer;
 use rand::Rng;
 use std::collections::HashMap;
+use std::collections::HashSet;
+use std::mem;
 
 const SIZE: usize = 288 - 8; // the index (acting as key) takes up the other 8 bytes
 const DIM: u32 = 2;
@@ -29,15 +27,14 @@ const BATCH: [usize; 3] = [16, 64, 256];
 
 #[derive(Serialize, Clone)]
 struct Element {
-    #[serde(serialize_with="<[_]>::serialize")]
-    e: [u8; SIZE], 
+    #[serde(serialize_with = "<[_]>::serialize")]
+    e: [u8; SIZE],
 }
 
 impl std::ops::BitXor for Element {
     type Output = Self;
 
     fn bitxor(self, rhs: Self) -> Self {
-   
         let mut el = Element { e: [0u8; SIZE] };
 
         for i in 0..self.e.len() {
@@ -49,7 +46,6 @@ impl std::ops::BitXor for Element {
 }
 
 impl std::ops::BitXorAssign for Element {
-
     fn bitxor_assign(&mut self, rhs: Self) {
         for i in 0..self.e.len() {
             self.e[i] ^= rhs.e[i];
@@ -57,20 +53,26 @@ impl std::ops::BitXorAssign for Element {
     }
 }
 
-fn get_oracle(code: &BatchCode<usize, Element>, rng: &mut Rng) 
-    -> (Vec<Vec<Tuple<usize, Element>>>, Vec<(u32, u32)>) {
+type OracleTy = (Vec<Vec<Tuple<usize, Element>>>, Vec<(u32, u32)>);
 
+fn get_oracle(
+    code: &dyn BatchCode<usize, Element>,
+    rng: &mut dyn Rng,
+) -> OracleTy {
     let mut collection = vec![];
 
     // we do this to construct the Oracle
     for i in 0..NUM as usize {
         let mut x = [0u8; SIZE];
         rng.fill_bytes(&mut x);
-        collection.push(Tuple { t: (i, Element { e: x } ) });
+        collection.push(Tuple {
+            t: (i, Element { e: x }),
+        });
     }
 
     let oracle = code.encode(&collection);
-    let sizes: Vec<(u32, u32)> = oracle.iter()
+    let sizes: Vec<(u32, u32)> = oracle
+        .iter()
         .map(|vec| (vec.len() as u32, mem::size_of::<(usize, Element)>() as u32))
         .collect();
 
@@ -80,24 +82,21 @@ fn get_oracle(code: &BatchCode<usize, Element>, rng: &mut Rng)
 #[test]
 fn mpir_sizes() {
     let mut rng = rand::thread_rng();
-    
-   
-    for k in &BATCH {
-   
 
+    for k in &BATCH {
         let code = CuckooCode::new(*k, 3, 1.5);
-        let (oracle, sizes) = get_oracle(&code, &mut rng); 
+        let (oracle, sizes) = get_oracle(&code, &mut rng);
 
         // Generate keys (desired indexes)
         let mut key_set: HashSet<usize> = HashSet::new();
-        while key_set.len() < *k { 
+        while key_set.len() < *k {
             key_set.insert(rng.next_u32() as usize % NUM as usize);
         }
 
         let keys: Vec<usize> = key_set.drain().collect();
 
         // Get schedule. Hash in the head. Simulate entries.
-        let schedule: HashMap<usize, Vec<usize>> = (&code as &BatchCode<usize, Element>)
+        let schedule: HashMap<usize, Vec<usize>> = (&code as &dyn BatchCode<usize, Element>)
             .get_schedule(&keys)
             .unwrap();
 
@@ -108,10 +107,7 @@ fn mpir_sizes() {
             .map(|(key, bucket)| {
                 (
                     *key,
-                    oracle[bucket]
-                        .iter()
-                        .position(|e| e.t.0 == *key)
-                        .unwrap(),
+                    oracle[bucket].iter().position(|e| e.t.0 == *key).unwrap(),
                 )
             })
             .collect();
@@ -148,19 +144,28 @@ fn mpir_sizes() {
             reply_size += r.reply.len();
         }
 
-        println!("cuckoo query: num {}, k {}, size {}, size/k {}", 
-                 NUM, *k, query_size / 1024, query_size / (*k * 1024));
-        println!("cuckoo reply num {}, k {}, size {}, size/k {}", 
-                 NUM, *k, reply_size / 1024, reply_size / (*k * 1024));
+        println!(
+            "cuckoo query: num {}, k {}, size {}, size/k {}",
+            NUM,
+            *k,
+            query_size / 1024,
+            query_size / (*k * 1024)
+        );
+        println!(
+            "cuckoo reply num {}, k {}, size {}, size/k {}",
+            NUM,
+            *k,
+            reply_size / 1024,
+            reply_size / (*k * 1024)
+        );
     }
-
 
     for k in &BATCH {
         // setup
         let mut rng = rand::thread_rng();
         let mut code = PungCode::new(*k);
 
-        let (oracle, sizes) = get_oracle(&code, &mut rng); 
+        let (oracle, sizes) = get_oracle(&code, &mut rng);
 
         // Create the client and the server
         let client = MultiPirClient::new(&sizes, POLY_DEGREE, LOGT, DIM);
@@ -169,7 +174,6 @@ fn mpir_sizes() {
 
         let galois = client.get_galois_keys();
         server.set_galois_keys(&galois, 0);
-
 
         // Get label mapping (since Pung is data-dependent...)
         let mut labels: HashMap<usize, Vec<usize>> = HashMap::new();
@@ -186,14 +190,14 @@ fn mpir_sizes() {
 
         // Generate keys (desired indexes)
         let mut key_set: HashSet<usize> = HashSet::new();
-        while key_set.len() < *k { 
+        while key_set.len() < *k {
             key_set.insert(rng.next_u32() as usize % NUM as usize);
         }
 
         let keys: Vec<usize> = key_set.drain().collect();
 
         // Get schedule. Hash in the head. Simulate entries.
-        let schedule: HashMap<usize, Vec<usize>> = (&code as &BatchCode<usize, usize>)
+        let schedule: HashMap<usize, Vec<usize>> = (&code as &dyn BatchCode<usize, usize>)
             .get_schedule(&keys)
             .unwrap();
 
@@ -210,12 +214,10 @@ fn mpir_sizes() {
             for i in 0..4 {
                 // Consult the oracle for the indices
                 // buckets that have keys
-                let pos = oracle[sub_bucket_i + i]
-                    .iter()
-                    .position(|e| e.t.0 == key);
+                let pos = oracle[sub_bucket_i + i].iter().position(|e| e.t.0 == key);
 
-                if pos.is_some() {
-                    index = pos.unwrap();
+                if let Some(ind) = pos {
+                    index = ind;
                     found = true;
                     break;
                 }
@@ -254,37 +256,42 @@ fn mpir_sizes() {
             reply_size += r.reply.len();
         }
 
-        println!("pung query: num {}, k {}, size {}, size/k {}", 
-                 NUM, *k, query_size / 1024, query_size / (*k * 1024));
-        println!("pung reply num {}, k {}, size {}, size/k {}", 
-                 NUM, *k, reply_size / 1024, reply_size / (*k * 1024));
-
+        println!(
+            "pung query: num {}, k {}, size {}, size/k {}",
+            NUM,
+            *k,
+            query_size / 1024,
+            query_size / (*k * 1024)
+        );
+        println!(
+            "pung reply num {}, k {}, size {}, size/k {}",
+            NUM,
+            *k,
+            reply_size / 1024,
+            reply_size / (*k * 1024)
+        );
     }
 }
-
-
-
-
 
 fn multipir_test<T>(k: usize, code: &T)
 where
     T: BatchCode<usize, Element>,
 {
     let mut rng = rand::thread_rng();
-    let (oracle, sizes) = get_oracle(code, &mut rng); 
+    let (oracle, sizes) = get_oracle(code, &mut rng);
 
     let truth = oracle.clone();
 
     // Generate keys (desired indexes)
     let mut key_set: HashSet<usize> = HashSet::new();
-    while key_set.len() < k { 
+    while key_set.len() < k {
         key_set.insert(rng.next_u32() as usize % NUM as usize);
     }
 
     let keys: Vec<usize> = key_set.drain().collect();
 
     // Get schedule. Hash in the head. Simulate entries.
-    let schedule: HashMap<usize, Vec<usize>> = (code as &BatchCode<usize, Element>)
+    let schedule: HashMap<usize, Vec<usize>> = (code as &dyn BatchCode<usize, Element>)
         .get_schedule(&keys)
         .unwrap();
 
@@ -295,10 +302,7 @@ where
         .map(|(key, bucket)| {
             (
                 *key,
-                oracle[bucket]
-                    .iter()
-                    .position(|e| e.t.0 == *key)
-                    .unwrap(),
+                oracle[bucket].iter().position(|e| e.t.0 == *key).unwrap(),
             )
         })
         .collect();
@@ -334,7 +338,6 @@ where
     // TODO: check to make sure they decode propoerly
 }
 
-
 #[test]
 fn multipir_test_replication() {
     let k = 8;
@@ -366,17 +369,15 @@ fn multipir_test_cuckoo() {
     multipir_test(k, &code);
 }
 
-
 #[test]
 fn multipir_test_pung() {
-
     let k = 16;
 
     // setup
     let mut rng = rand::thread_rng();
     let mut code = PungCode::new(k);
 
-    let (oracle, sizes) = get_oracle(&code, &mut rng); 
+    let (oracle, sizes) = get_oracle(&code, &mut rng);
     let truth = oracle.clone();
 
     // Create the client and the server
@@ -386,7 +387,6 @@ fn multipir_test_pung() {
 
     let galois = client.get_galois_keys();
     server.set_galois_keys(&galois, 0);
-
 
     // Get label mapping (since Pung is data-dependent...)
     let mut labels: HashMap<usize, Vec<usize>> = HashMap::new();
@@ -403,14 +403,14 @@ fn multipir_test_pung() {
 
     // Generate keys (desired indexes)
     let mut key_set: HashSet<usize> = HashSet::new();
-    while key_set.len() < k { 
+    while key_set.len() < k {
         key_set.insert(rng.next_u32() as usize % NUM as usize);
     }
 
     let keys: Vec<usize> = key_set.drain().collect();
 
     // Get schedule. Hash in the head. Simulate entries.
-    let schedule: HashMap<usize, Vec<usize>> = (&code as &BatchCode<usize, usize>)
+    let schedule: HashMap<usize, Vec<usize>> = (&code as &dyn BatchCode<usize, usize>)
         .get_schedule(&keys)
         .unwrap();
 
@@ -427,12 +427,10 @@ fn multipir_test_pung() {
         for i in 0..4 {
             // Consult the oracle for the indices
             // buckets that have keys
-            let pos = oracle[sub_bucket_i + i]
-                .iter()
-                .position(|e| e.t.0 == key);
+            let pos = oracle[sub_bucket_i + i].iter().position(|e| e.t.0 == key);
 
-            if pos.is_some() {
-                index = pos.unwrap();
+            if let Some(ind) = pos {
+                index = ind;
                 found = true;
                 break;
             }
@@ -467,5 +465,3 @@ fn multipir_test_pung() {
         }
     }
 }
-
-

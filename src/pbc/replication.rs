@@ -1,9 +1,9 @@
 use super::BatchCode;
-use std::collections::HashMap;
-use std::{cmp, hash};
-use serde::Serialize;
 use super::Tuple;
+use serde::Serialize;
+use std::collections::HashMap;
 use std::ops::{BitXor, BitXorAssign};
+use std::{cmp, hash};
 
 pub struct ReplicationCode {
     k: usize,

@@ -2,17 +2,17 @@ use rand;
 use rand::Rng;
 use std::collections::HashMap;
 
-use super::BatchCode;
-use super::replication::ReplicationCode;
-use super::sharding::ShardingCode;
 use super::choices::ChoicesCode;
 use super::cuckoo::CuckooCode;
 use super::pung::PungCode;
+use super::replication::ReplicationCode;
+use super::sharding::ShardingCode;
+use super::BatchCode;
 use super::Tuple;
 
-fn do_test(code: &BatchCode<usize, usize>, k: usize, tuples: &[Tuple<usize, usize>]) {
+fn do_test(code: &dyn BatchCode<usize, usize>, k: usize, tuples: &[Tuple<usize, usize>]) {
     // server
-    let db: Vec<Vec<Tuple<usize, usize>>> = code.encode(&tuples);
+    let db: Vec<Vec<Tuple<usize, usize>>> = code.encode(tuples);
     let keys: Vec<usize> = (0..k).collect();
 
     // client
@@ -84,7 +84,6 @@ fn test_cuckoo() {
     }
 }
 
-
 #[test]
 fn test_pung() {
     let mut rng = rand::thread_rng();
@@ -105,7 +104,7 @@ fn test_pung() {
 
         for (i, vec_tuple) in db.iter().enumerate() {
             for tuple in vec_tuple {
-                let entry = labels.entry(tuple.t.0).or_insert(Vec::new());
+                let entry = labels.entry(tuple.t.0).or_default();
                 entry.push(i);
             }
         }
@@ -113,7 +112,7 @@ fn test_pung() {
         code.set_labels(labels);
 
         // client
-        let _schedule = (&code as &BatchCode<usize, usize>)
+        let _schedule = (&code as &dyn BatchCode<usize, usize>)
             .get_schedule(&keys)
             .unwrap();
     }

@@ -1,21 +1,19 @@
-#![feature(custom_attribute, custom_derive, plugin)]
-
 #[macro_use]
 extern crate criterion;
-extern crate rand;
 extern crate mpir;
+extern crate rand;
 extern crate serde;
 
 #[macro_use]
 extern crate serde_derive;
 
 use criterion::Criterion;
-use std::time::Duration;
 use mpir::client::MultiPirClient;
-use mpir::server::MultiPirServer;
-use mpir::pbc::{BatchCode, Tuple};
 use mpir::pbc::cuckoo::CuckooCode;
 use mpir::pbc::pung::PungCode;
+use mpir::pbc::{BatchCode, Tuple};
+use mpir::server::MultiPirServer;
+use std::time::Duration;
 
 use rand::ChaChaRng;
 use rand::Rng;
@@ -32,15 +30,14 @@ const BATCH_SIZES: [usize; 3] = [16, 64, 256];
 
 #[derive(Serialize, Clone)]
 struct Element {
-    #[serde(serialize_with="<[_]>::serialize")]
-    e: [u8; SIZE], 
+    #[serde(serialize_with = "<[_]>::serialize")]
+    e: [u8; SIZE],
 }
 
 impl std::ops::BitXor for Element {
     type Output = Self;
 
     fn bitxor(self, rhs: Self) -> Self {
-   
         let mut el = Element { e: [0u8; SIZE] };
 
         for i in 0..self.e.len() {
@@ -52,7 +49,6 @@ impl std::ops::BitXor for Element {
 }
 
 impl std::ops::BitXorAssign for Element {
-
     fn bitxor_assign(&mut self, rhs: Self) {
         for i in 0..self.e.len() {
             self.e[i] ^= rhs.e[i];
@@ -60,31 +56,35 @@ impl std::ops::BitXorAssign for Element {
     }
 }
 
-fn get_oracle(code: &BatchCode<usize, Element>, rng: &mut Rng) 
-    -> (Vec<Vec<Tuple<usize, Element>>>, Vec<(u32, u32)>) {
+type OracleTy = (Vec<Vec<Tuple<usize, Element>>>, Vec<(u32, u32)>);
 
+fn get_oracle(
+    code: &dyn BatchCode<usize, Element>,
+    rng: &mut dyn Rng,
+) -> OracleTy {
     let mut collection = vec![];
 
     // we do this to construct the Oracle
     for i in 0..NUM as usize {
         let mut x = [0u8; SIZE];
         rng.fill_bytes(&mut x);
-        collection.push(Tuple { t: (i, Element { e: x } ) });
+        collection.push(Tuple {
+            t: (i, Element { e: x }),
+        });
     }
 
     let oracle = code.encode(&collection);
-    let sizes: Vec<(u32, u32)> = oracle.iter()
+    let sizes: Vec<(u32, u32)> = oracle
+        .iter()
         .map(|vec| (vec.len() as u32, mem::size_of::<(usize, Element)>() as u32))
         .collect();
 
     (oracle, sizes)
 }
 
-
-
 fn setup_cuckoo(c: &mut Criterion) {
     c.bench_function_over_inputs(
-        &format!("setup_cuckoo_d{}_n{}", DIM, NUM),
+        &format!("setup_cuckoo_d{DIM}_n{NUM}"),
         |b, &&k| {
             // setup
             let mut rng = ChaChaRng::new_unseeded();
@@ -93,7 +93,9 @@ fn setup_cuckoo(c: &mut Criterion) {
             for i in 0..NUM as usize {
                 let mut x = [0u8; SIZE];
                 rng.fill_bytes(&mut x);
-                collection.push(Tuple { t: (i, Element { e: x }) });
+                collection.push(Tuple {
+                    t: (i, Element { e: x }),
+                });
             }
 
             let code = CuckooCode::new(k, 3, 1.5);
@@ -101,8 +103,13 @@ fn setup_cuckoo(c: &mut Criterion) {
             // measurement
             b.iter(|| {
                 let buckets = code.encode(&collection);
-                MultiPirServer::new_setup(&buckets[..], (SIZE + mem::size_of::<usize>()) as u32, 
-                                          POLY_DEGREE, LOGT, DIM);
+                MultiPirServer::new_setup(
+                    &buckets[..],
+                    (SIZE + mem::size_of::<usize>()) as u32,
+                    POLY_DEGREE,
+                    LOGT,
+                    DIM,
+                );
             });
         },
         &BATCH_SIZES,
@@ -111,7 +118,7 @@ fn setup_cuckoo(c: &mut Criterion) {
 
 fn setup_pung(c: &mut Criterion) {
     c.bench_function_over_inputs(
-        &format!("setup_pung_d{}_n{}", DIM, NUM),
+        &format!("setup_pung_d{DIM}_n{NUM}"),
         |b, &&k| {
             // setup
             let mut rng = ChaChaRng::new_unseeded();
@@ -120,7 +127,9 @@ fn setup_pung(c: &mut Criterion) {
             for i in 0..NUM as usize {
                 let mut x = [0u8; SIZE];
                 rng.fill_bytes(&mut x);
-                collection.push(Tuple { t: (i, Element { e: x }) });
+                collection.push(Tuple {
+                    t: (i, Element { e: x }),
+                });
             }
 
             let code = PungCode::new(k);
@@ -128,8 +137,13 @@ fn setup_pung(c: &mut Criterion) {
             // measurement
             b.iter(|| {
                 let buckets = code.encode(&collection);
-                MultiPirServer::new_setup(&buckets[..], (SIZE + mem::size_of::<usize>()) as u32, 
-                                          POLY_DEGREE, LOGT, DIM);
+                MultiPirServer::new_setup(
+                    &buckets[..],
+                    (SIZE + mem::size_of::<usize>()) as u32,
+                    POLY_DEGREE,
+                    LOGT,
+                    DIM,
+                );
             });
         },
         &BATCH_SIZES,
@@ -138,7 +152,7 @@ fn setup_pung(c: &mut Criterion) {
 
 fn query_cuckoo(c: &mut Criterion) {
     c.bench_function_over_inputs(
-        &format!("query_cuckoo_d{}_n{}", DIM, NUM),
+        &format!("query_cuckoo_d{DIM}_n{NUM}"),
         |b, &&k| {
             // setup
             let mut rng = ChaChaRng::new_unseeded();
@@ -151,7 +165,7 @@ fn query_cuckoo(c: &mut Criterion) {
 
             // Generate keys (desired indexes)
             let mut key_set: HashSet<usize> = HashSet::new();
-            while key_set.len() < k { 
+            while key_set.len() < k {
                 key_set.insert(rng.next_u32() as usize % NUM as usize);
             }
 
@@ -160,7 +174,7 @@ fn query_cuckoo(c: &mut Criterion) {
             // measurement
             b.iter(|| {
                 // Get schedule
-                let schedule: HashMap<usize, Vec<usize>> = (&code as &BatchCode<usize, usize>)
+                let schedule: HashMap<usize, Vec<usize>> = (&code as &dyn BatchCode<usize, usize>)
                     .get_schedule(&keys)
                     .unwrap();
 
@@ -171,10 +185,7 @@ fn query_cuckoo(c: &mut Criterion) {
                     .map(|(key, bucket)| {
                         (
                             *key,
-                            oracle[bucket]
-                                .iter()
-                                .position(|e| e.t.0 == *key)
-                                .unwrap(),
+                            oracle[bucket].iter().position(|e| e.t.0 == *key).unwrap(),
                         )
                     })
                     .collect();
@@ -190,7 +201,6 @@ fn query_cuckoo(c: &mut Criterion) {
                 }
 
                 client.gen_query(&ind_vec);
-
             });
         },
         &BATCH_SIZES,
@@ -199,7 +209,7 @@ fn query_cuckoo(c: &mut Criterion) {
 
 fn query_pung(c: &mut Criterion) {
     c.bench_function_over_inputs(
-        &format!("query_pung_d{}_n{}", DIM, NUM),
+        &format!("query_pung_d{DIM}_n{NUM}"),
         |b, &&k| {
             // setup
             let mut rng = ChaChaRng::new_unseeded();
@@ -225,7 +235,7 @@ fn query_pung(c: &mut Criterion) {
 
             // Generate keys (desired indexes)
             let mut key_set: HashSet<usize> = HashSet::new();
-            while key_set.len() < k { 
+            while key_set.len() < k {
                 key_set.insert(rng.next_u32() as usize % NUM as usize);
             }
 
@@ -234,7 +244,7 @@ fn query_pung(c: &mut Criterion) {
             // measurement
             b.iter(|| {
                 // Get schedule. Hash in the head. Simulate entries.
-                let schedule: HashMap<usize, Vec<usize>> = (&code as &BatchCode<usize, usize>)
+                let schedule: HashMap<usize, Vec<usize>> = (&code as &dyn BatchCode<usize, usize>)
                     .get_schedule(&keys)
                     .unwrap();
 
@@ -251,12 +261,10 @@ fn query_pung(c: &mut Criterion) {
                     for i in 0..4 {
                         // Consult the oracle for the indices
                         // buckets that have keys
-                        let pos = oracle[sub_bucket_i + i]
-                            .iter()
-                            .position(|e| e.t.0 == key);
+                        let pos = oracle[sub_bucket_i + i].iter().position(|e| e.t.0 == key);
 
-                        if pos.is_some() {
-                            index = pos.unwrap();
+                        if let Some(ind) = pos {
+                            index = ind;
                             found = true;
                             break;
                         }
@@ -290,24 +298,24 @@ fn query_pung(c: &mut Criterion) {
 
 fn reply_cuckoo(c: &mut Criterion) {
     c.bench_function_over_inputs(
-        &format!("reply_cuckoo_d{}_n{}", DIM, NUM),
+        &format!("reply_cuckoo_d{DIM}_n{NUM}"),
         |b, &&k| {
             // setup
             let mut rng = ChaChaRng::new_unseeded();
             let code = CuckooCode::new(k, 3, 1.5);
 
-            let (oracle, sizes) = get_oracle(&code, &mut rng); 
+            let (oracle, sizes) = get_oracle(&code, &mut rng);
 
             // Generate keys (desired indexes)
             let mut key_set: HashSet<usize> = HashSet::new();
-            while key_set.len() < k { 
+            while key_set.len() < k {
                 key_set.insert(rng.next_u32() as usize % NUM as usize);
             }
 
             let keys: Vec<usize> = key_set.drain().collect();
 
             // Get schedule. Hash in the head. Simulate entries.
-            let schedule: HashMap<usize, Vec<usize>> = (&code as &BatchCode<usize, usize>)
+            let schedule: HashMap<usize, Vec<usize>> = (&code as &dyn BatchCode<usize, usize>)
                 .get_schedule(&keys)
                 .unwrap();
 
@@ -318,10 +326,7 @@ fn reply_cuckoo(c: &mut Criterion) {
                 .map(|(key, bucket)| {
                     (
                         *key,
-                        oracle[bucket]
-                            .iter()
-                            .position(|e| e.t.0 == *key)
-                            .unwrap(),
+                        oracle[bucket].iter().position(|e| e.t.0 == *key).unwrap(),
                     )
                 })
                 .collect();
@@ -355,13 +360,13 @@ fn reply_cuckoo(c: &mut Criterion) {
 
 fn reply_pung(c: &mut Criterion) {
     c.bench_function_over_inputs(
-        &format!("reply_pung_d{}_n{}", DIM, NUM),
+        &format!("reply_pung_d{DIM}_n{NUM}"),
         |b, &&k| {
             // setup
             let mut rng = ChaChaRng::new_unseeded();
             let mut code = PungCode::new(k);
 
-            let (oracle, sizes) = get_oracle(&code, &mut rng); 
+            let (oracle, sizes) = get_oracle(&code, &mut rng);
 
             // Create the client and the server
             let client = MultiPirClient::new(&sizes, POLY_DEGREE, LOGT, DIM);
@@ -370,7 +375,6 @@ fn reply_pung(c: &mut Criterion) {
 
             let galois = client.get_galois_keys();
             server.set_galois_keys(&galois, 0);
-
 
             // Get label mapping (since Pung is data-dependent...)
             let mut labels: HashMap<usize, Vec<usize>> = HashMap::new();
@@ -387,14 +391,14 @@ fn reply_pung(c: &mut Criterion) {
 
             // Generate keys (desired indexes)
             let mut key_set: HashSet<usize> = HashSet::new();
-            while key_set.len() < k { 
+            while key_set.len() < k {
                 key_set.insert(rng.next_u32() as usize % NUM as usize);
             }
 
             let keys: Vec<usize> = key_set.drain().collect();
 
             // Get schedule. Hash in the head. Simulate entries.
-            let schedule: HashMap<usize, Vec<usize>> = (&code as &BatchCode<usize, usize>)
+            let schedule: HashMap<usize, Vec<usize>> = (&code as &dyn BatchCode<usize, usize>)
                 .get_schedule(&keys)
                 .unwrap();
 
@@ -411,12 +415,10 @@ fn reply_pung(c: &mut Criterion) {
                 for i in 0..4 {
                     // Consult the oracle for the indices
                     // buckets that have keys
-                    let pos = oracle[sub_bucket_i + i]
-                        .iter()
-                        .position(|e| e.t.0 == key);
+                    let pos = oracle[sub_bucket_i + i].iter().position(|e| e.t.0 == key);
 
-                    if pos.is_some() {
-                        index = pos.unwrap();
+                    if let Some(ind) = pos {
+                        index = ind;
                         found = true;
                         break;
                     }
@@ -450,27 +452,26 @@ fn reply_pung(c: &mut Criterion) {
     );
 }
 
-
 fn decode_cuckoo(c: &mut Criterion) {
     c.bench_function_over_inputs(
-        &format!("decode_cuckoo_d{}_n{}", DIM, NUM),
+        &format!("decode_cuckoo_d{DIM}_n{NUM}"),
         |b, &&k| {
             // setup
             let mut rng = ChaChaRng::new_unseeded();
             let code = CuckooCode::new(k, 3, 1.5);
 
-            let (oracle, sizes) = get_oracle(&code, &mut rng); 
+            let (oracle, sizes) = get_oracle(&code, &mut rng);
 
             // Generate keys (desired indexes)
             let mut key_set: HashSet<usize> = HashSet::new();
-            while key_set.len() < k { 
+            while key_set.len() < k {
                 key_set.insert(rng.next_u32() as usize % NUM as usize);
             }
 
             let keys: Vec<usize> = key_set.drain().collect();
 
             // Get schedule. Hash in the head. Simulate entries.
-            let schedule: HashMap<usize, Vec<usize>> = (&code as &BatchCode<usize, usize>)
+            let schedule: HashMap<usize, Vec<usize>> = (&code as &dyn BatchCode<usize, usize>)
                 .get_schedule(&keys)
                 .unwrap();
 
@@ -481,10 +482,7 @@ fn decode_cuckoo(c: &mut Criterion) {
                 .map(|(key, bucket)| {
                     (
                         *key,
-                        oracle[bucket]
-                            .iter()
-                            .position(|e| e.t.0 == *key)
-                            .unwrap(),
+                        oracle[bucket].iter().position(|e| e.t.0 == *key).unwrap(),
                     )
                 })
                 .collect();
@@ -511,7 +509,7 @@ fn decode_cuckoo(c: &mut Criterion) {
             let reply = server.gen_replies(&query, 0);
 
             // measurement
-            b.iter(|| client.decode_replies::<Tuple<usize, Element>>(&ind_vec[..], &reply) );
+            b.iter(|| client.decode_replies::<Tuple<usize, Element>>(&ind_vec[..], &reply));
         },
         &BATCH_SIZES,
     );
@@ -519,13 +517,13 @@ fn decode_cuckoo(c: &mut Criterion) {
 
 fn decode_pung(c: &mut Criterion) {
     c.bench_function_over_inputs(
-        &format!("decode_pung_d{}_n{}", DIM, NUM),
+        &format!("decode_pung_d{DIM}_n{NUM}"),
         |b, &&k| {
             // setup
             let mut rng = ChaChaRng::new_unseeded();
             let mut code = PungCode::new(k);
 
-            let (oracle, sizes) = get_oracle(&code, &mut rng); 
+            let (oracle, sizes) = get_oracle(&code, &mut rng);
 
             // Create the client and the server
             let client = MultiPirClient::new(&sizes, POLY_DEGREE, LOGT, DIM);
@@ -534,7 +532,6 @@ fn decode_pung(c: &mut Criterion) {
 
             let galois = client.get_galois_keys();
             server.set_galois_keys(&galois, 0);
-
 
             // Get label mapping (since Pung is data-dependent...)
             let mut labels: HashMap<usize, Vec<usize>> = HashMap::new();
@@ -551,14 +548,14 @@ fn decode_pung(c: &mut Criterion) {
 
             // Generate keys (desired indexes)
             let mut key_set: HashSet<usize> = HashSet::new();
-            while key_set.len() < k { 
+            while key_set.len() < k {
                 key_set.insert(rng.next_u32() as usize % NUM as usize);
             }
 
             let keys: Vec<usize> = key_set.drain().collect();
 
             // Get schedule. Hash in the head. Simulate entries.
-            let schedule: HashMap<usize, Vec<usize>> = (&code as &BatchCode<usize, usize>)
+            let schedule: HashMap<usize, Vec<usize>> = (&code as &dyn BatchCode<usize, usize>)
                 .get_schedule(&keys)
                 .unwrap();
 
@@ -575,12 +572,10 @@ fn decode_pung(c: &mut Criterion) {
                 for i in 0..4 {
                     // Consult the oracle for the indices
                     // buckets that have keys
-                    let pos = oracle[sub_bucket_i + i]
-                        .iter()
-                        .position(|e| e.t.0 == key);
+                    let pos = oracle[sub_bucket_i + i].iter().position(|e| e.t.0 == key);
 
-                    if pos.is_some() {
-                        index = pos.unwrap();
+                    if let Some(ind) = pos {
+                        index = ind;
                         found = true;
                         break;
                     }
@@ -609,7 +604,7 @@ fn decode_pung(c: &mut Criterion) {
             let reply = server.gen_replies(&query, 0);
 
             // measurement
-            b.iter(||  client.decode_replies::<Tuple<usize, Element>>(&ind_vec[..], &reply) );
+            b.iter(|| client.decode_replies::<Tuple<usize, Element>>(&ind_vec[..], &reply));
         },
         &BATCH_SIZES,
     );
